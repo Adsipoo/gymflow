@@ -25,8 +25,20 @@ function initials(n) {
   return p.length > 1 ? p[0][0] + p[1][0] : p[0].slice(0, 2)
 }
 
+async function sendEmail(type, to, data) {
+  try {
+    await fetch('/api/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, to, data }),
+    })
+  } catch (err) {
+    console.error('Email send failed:', err)
+  }
+}
+
 export default function SchedulePage() {
-  const { profile, supabase } = useUser()
+  const { profile, gym, supabase } = useUser()
   const [classes, setClasses] = useState([])
   const [trainers, setTrainers] = useState([])
   const [bookings, setBookings] = useState([])
@@ -69,6 +81,8 @@ export default function SchedulePage() {
   const handleBook = async (cls) => {
     if (!canAccess(cls.type)) return
     const existing = bookings.find(b => b.class_id === cls.id && b.status !== 'cancelled')
+    const tr = getTrainer(cls.trainer_id)
+    const gymName = gym?.name || 'GymFlow'
 
     if (existing) {
       // Cancel booking
@@ -78,6 +92,15 @@ export default function SchedulePage() {
         const idx = prev.findIndex(b => b.class_id === cls.id)
         if (idx === -1) return prev
         return [...prev.slice(0, idx), ...prev.slice(idx + 1)]
+      })
+
+      // Send cancellation email
+      sendEmail('bookingCancelled', profile.email, {
+        memberName: profile.full_name,
+        className: cls.type,
+        day: cls.day,
+        time: cls.time,
+        gymName,
       })
     } else {
       // Check capacity before booking
@@ -93,6 +116,16 @@ export default function SchedulePage() {
       if (data) {
         setBookings(prev => [...prev, data])
         setAllBookings(prev => [...prev, { class_id: cls.id, status: 'booked' }])
+
+        // Send confirmation email
+        sendEmail('bookingConfirmed', profile.email, {
+          memberName: profile.full_name,
+          className: cls.type,
+          trainer: tr.name,
+          day: cls.day,
+          time: cls.time,
+          gymName,
+        })
       }
     }
     setModal(null)
