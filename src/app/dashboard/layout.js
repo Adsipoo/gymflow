@@ -20,11 +20,12 @@ const IC = {
   star: "M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z",
   palette: "M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-1 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8z",
   fitness: "M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z",
+  logout: "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z",
 }
 
-function NavIcon({ d, active, color }) {
+function NavIcon({ d, active, color, size }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? color : '#8E8E93'}>
+    <svg width={size || 22} height={size || 22} viewBox="0 0 24 24" fill={active ? color : '#8E8E93'}>
       <path d={d} />
     </svg>
   )
@@ -53,10 +54,18 @@ export default function DashboardLayout({ children }) {
   const [profile, setProfile] = useState(null)
   const [gym, setGym] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isMobile, setIsMobile] = useState(true)
   const supabase = createSupabaseBrowser()
   const router = useRouter()
   const pathname = usePathname()
   const accent = '#007AFF'
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   useEffect(() => {
     async function load() {
@@ -72,7 +81,6 @@ export default function DashboardLayout({ children }) {
         .single()
       setProfile(prof)
 
-      // Load gym
       const { data: gymData } = await supabase
         .from('gyms')
         .select('*')
@@ -105,74 +113,160 @@ export default function DashboardLayout({ children }) {
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'owner'
   const nav = isAdmin ? adminNav : memberNav
+  const tierLabel = profile?.tier === 'allAccess' ? 'All-Access' : profile?.tier ? profile.tier.charAt(0).toUpperCase() + profile.tier.slice(1) : 'Basic'
 
   return (
     <UserCtx.Provider value={{ user, profile, gym, supabase, setProfile }}>
-      <div style={{ minHeight: '100vh', background: '#F2F2F7', fontFamily: font }}>
-        {/* Header */}
-        <div style={{
-          background: '#FFFFFF', borderBottom: '1px solid rgba(0,0,0,0.06)',
-          padding: '14px 20px', display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100,
-        }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#8E8E93', letterSpacing: 1.5, textTransform: 'uppercase' }}>
-            {gym?.name || 'GymFlow'}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {isAdmin && (
-              <span style={{
-                background: accent + '10', border: '1px solid ' + accent + '25',
-                color: accent, padding: '4px 10px', borderRadius: 6,
-                fontSize: 11, fontWeight: 600,
-              }}>
-                Admin
-              </span>
-            )}
-            <span style={{
-              fontSize: 11, fontWeight: 600, color: '#34C759',
-              background: '#34C75914', padding: '4px 10px', borderRadius: 6,
-            }}>
-              {profile?.tier === 'allAccess' ? 'All-Access' : profile?.tier ? profile.tier.charAt(0).toUpperCase() + profile.tier.slice(1) : 'Basic'}
-            </span>
-            <button onClick={handleSignOut} style={{
-              background: 'none', border: '1px solid rgba(0,0,0,0.08)',
-              color: '#8E8E93', padding: '4px 10px', borderRadius: 6,
-              fontSize: 11, cursor: 'pointer', fontFamily: font,
-            }}>
-              Sign out
-            </button>
-          </div>
-        </div>
+      <div style={{ minHeight: '100vh', background: '#F2F2F7', fontFamily: font, display: 'flex' }}>
 
-        {/* Page Content */}
-        {children}
-
-        {/* Bottom Nav */}
-        <div style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0,
-          background: '#FFFFFF', borderTop: '1px solid rgba(0,0,0,0.06)',
-          display: 'flex', justifyContent: 'space-around',
-          padding: '6px 0 10px', zIndex: 100,
-        }}>
-          {nav.map(n => (
-            <button
-              key={n.id}
-              onClick={() => router.push(n.id)}
-              style={{
-                background: 'none', border: 'none', cursor: 'pointer',
-                display: 'flex', flexDirection: 'column', alignItems: 'center',
-                gap: 2, padding: '4px 8px', minWidth: 48, fontFamily: font,
-              }}
-            >
-              <NavIcon d={n.icon} active={pathname === n.id} color={accent} />
-              <span style={{
-                fontSize: 10, fontWeight: 600, letterSpacing: -0.1,
-                color: pathname === n.id ? accent : '#8E8E93',
+        {/* Desktop Sidebar */}
+        {!isMobile && (
+          <div style={{
+            width: 240, background: '#FFFFFF', borderRight: '1px solid rgba(0,0,0,0.06)',
+            display: 'flex', flexDirection: 'column', position: 'fixed',
+            top: 0, left: 0, bottom: 0, zIndex: 100,
+            padding: '24px 0',
+          }}>
+            {/* Logo / Gym Name */}
+            <div style={{ padding: '0 20px 24px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+              <div style={{
+                fontSize: 11, fontWeight: 700, color: '#8E8E93',
+                letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8,
               }}>
-                {n.label}
-              </span>
-            </button>
-          ))}
+                {gym?.name || 'GymFlow'}
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {isAdmin && (
+                  <span style={{
+                    background: accent + '10', border: '1px solid ' + accent + '25',
+                    color: accent, padding: '3px 8px', borderRadius: 6,
+                    fontSize: 10, fontWeight: 600,
+                  }}>Admin</span>
+                )}
+                <span style={{
+                  fontSize: 10, fontWeight: 600, color: '#34C759',
+                  background: '#34C75914', padding: '3px 8px', borderRadius: 6,
+                }}>{tierLabel}</span>
+              </div>
+            </div>
+
+            {/* Nav Items */}
+            <div style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {nav.map(n => {
+                const active = pathname === n.id
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => router.push(n.id)}
+                    style={{
+                      background: active ? accent + '0A' : 'transparent',
+                      border: 'none', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '10px 12px', borderRadius: 10,
+                      fontFamily: font, width: '100%', textAlign: 'left',
+                    }}
+                  >
+                    <NavIcon d={n.icon} active={active} color={accent} size={20} />
+                    <span style={{
+                      fontSize: 14, fontWeight: active ? 600 : 500,
+                      color: active ? accent : '#3A3A3C',
+                    }}>
+                      {n.label}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Sign Out */}
+            <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+              <button
+                onClick={handleSignOut}
+                style={{
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '10px 12px', borderRadius: 10,
+                  fontFamily: font, width: '100%', textAlign: 'left',
+                }}
+              >
+                <NavIcon d={IC.logout} active={false} color="#FF3B30" size={20} />
+                <span style={{ fontSize: 14, fontWeight: 500, color: '#8E8E93' }}>
+                  Sign out
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content */}
+        <div style={{
+          flex: 1,
+          marginLeft: isMobile ? 0 : 240,
+          minHeight: '100vh',
+        }}>
+          {/* Mobile Header */}
+          {isMobile && (
+            <div style={{
+              background: '#FFFFFF', borderBottom: '1px solid rgba(0,0,0,0.06)',
+              padding: '14px 20px', display: 'flex', alignItems: 'center',
+              justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100,
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#8E8E93', letterSpacing: 1.5, textTransform: 'uppercase' }}>
+                {gym?.name || 'GymFlow'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {isAdmin && (
+                  <span style={{
+                    background: accent + '10', border: '1px solid ' + accent + '25',
+                    color: accent, padding: '4px 10px', borderRadius: 6,
+                    fontSize: 11, fontWeight: 600,
+                  }}>Admin</span>
+                )}
+                <span style={{
+                  fontSize: 11, fontWeight: 600, color: '#34C759',
+                  background: '#34C75914', padding: '4px 10px', borderRadius: 6,
+                }}>{tierLabel}</span>
+                <button onClick={handleSignOut} style={{
+                  background: 'none', border: '1px solid rgba(0,0,0,0.08)',
+                  color: '#8E8E93', padding: '4px 10px', borderRadius: 6,
+                  fontSize: 11, cursor: 'pointer', fontFamily: font,
+                }}>Sign out</button>
+              </div>
+            </div>
+          )}
+
+          {/* Page Content */}
+          {children}
+
+          {/* Mobile Bottom Nav */}
+          {isMobile && (
+            <div style={{
+              position: 'fixed', bottom: 0, left: 0, right: 0,
+              background: '#FFFFFF', borderTop: '1px solid rgba(0,0,0,0.06)',
+              display: 'flex', justifyContent: 'space-around',
+              padding: '6px 0 10px', zIndex: 100,
+            }}>
+              {nav.map(n => (
+                <button
+                  key={n.id}
+                  onClick={() => router.push(n.id)}
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    gap: 2, padding: '4px 8px', minWidth: 48, fontFamily: font,
+                  }}
+                >
+                  <NavIcon d={n.icon} active={pathname === n.id} color={accent} />
+                  <span style={{
+                    fontSize: 10, fontWeight: 600, letterSpacing: -0.1,
+                    color: pathname === n.id ? accent : '#8E8E93',
+                  }}>
+                    {n.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </UserCtx.Provider>
