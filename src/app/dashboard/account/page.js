@@ -75,7 +75,7 @@ export default function AccountPage() {
         if (data) setProfile(data)
       }
       refreshProfile()
-      ssetToast({ message: `Plan changed to ${TIERS[newTier]?.name || newTier}!`, type: 'success' })
+      setToast({ message: `Plan changed to ${TIERS[newTier]?.name || newTier}!`, type: 'success' })
       window.history.replaceState({}, '', '/dashboard/account')
     } else if (paymentStatus === 'cancelled') {
       setToast({ message: 'Payment cancelled', type: 'error' })

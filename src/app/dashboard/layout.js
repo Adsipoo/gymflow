@@ -43,6 +43,7 @@ const adminNav = [
   { id: '/dashboard/members', label: 'Members', icon: IC.people },
   { id: '/dashboard/reviews', label: 'Reviews', icon: IC.star },
   { id: '/dashboard/branding', label: 'Brand', icon: IC.palette },
+  { id: '/dashboard/account', label: 'Account', icon: IC.person },
 ]
 
 export default function DashboardLayout({ children }) {
