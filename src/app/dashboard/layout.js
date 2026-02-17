@@ -82,10 +82,10 @@ export default function DashboardLayout({ children }) {
       setProfile(prof)
 
       const { data: gymData } = await supabase
-        .from('gyms')
-        .select('*')
-        .limit(1)
-        .single()
+  .from('gyms')
+  .select('*')
+  .eq('owner_id', prof.id)
+  .single()
       setGym(gymData)
 
       setLoading(false)
