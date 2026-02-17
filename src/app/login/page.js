@@ -90,7 +90,7 @@ export default function LoginPage() {
             fontSize: 13, fontWeight: 700, color: '#8E8E93',
             letterSpacing: 2, textTransform: 'uppercase', marginBottom: 8,
           }}>
-            GymFlow
+            Humanitix Wellness
           </div>
           <div style={{
             fontSize: 32, fontWeight: 700, color: '#1C1C1E',

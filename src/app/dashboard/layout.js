@@ -133,7 +133,7 @@ export default function DashboardLayout({ children }) {
                 fontSize: 11, fontWeight: 700, color: '#8E8E93',
                 letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8,
               }}>
-                {gym?.name || 'GymFlow'}
+                {gym?.name || 'Humanitix Wellness'}
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 {isAdmin && (
@@ -212,7 +212,7 @@ export default function DashboardLayout({ children }) {
               justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100,
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#8E8E93', letterSpacing: 1.5, textTransform: 'uppercase' }}>
-                {gym?.name || 'GymFlow'}
+                {gym?.name || 'Humanitix Wellness'}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 {isAdmin && (

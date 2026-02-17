@@ -90,7 +90,7 @@ export default function SchedulePage() {
     if (!canAccess(cls.type)) return
     const existing = bookings.find(b => b.class_id === cls.id && b.status !== 'cancelled')
     const tr = getTrainer(cls.trainer_id)
-    const gymName = gym?.name || 'GymFlow'
+    const gymName = gym?.name || 'Humanitix Wellness'
 
     if (existing) {
       // Cancel booking
