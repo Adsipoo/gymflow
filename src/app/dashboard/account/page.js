@@ -140,7 +140,10 @@ export default function AccountPage() {
               {tier.classes.length} class types
             </div>
           </div>
-          <button style={{
+          <button onClick={async () => {
+            await supabase.from('profiles').update({ tier: key }).eq('id', profile.id)
+            setProfile(prev => ({ ...prev, tier: key }))
+          }} style={{
             background: tier.color + '10', border: 'none', color: tier.color,
             padding: '8px 18px', borderRadius: 10, fontSize: 13,
             fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',

@@ -30,6 +30,7 @@ export default function SchedulePage() {
   const [classes, setClasses] = useState([])
   const [trainers, setTrainers] = useState([])
   const [bookings, setBookings] = useState([])
+  const [allBookings, setAllBookings] = useState([])
   const [selDay, setSelDay] = useState(todayDay)
   const [selType, setSelType] = useState('All')
   const [modal, setModal] = useState(null)
@@ -37,14 +38,16 @@ export default function SchedulePage() {
 
   useEffect(() => {
     async function load() {
-      const [clsRes, trRes, bkRes] = await Promise.all([
+      const [clsRes, trRes, bkRes, abRes] = await Promise.all([
         supabase.from('classes').select('*').order('time'),
         supabase.from('trainers').select('*'),
         supabase.from('bookings').select('*').eq('member_id', profile.id).in('status', ['booked', 'checked_in']),
+        supabase.from('bookings').select('class_id, status').in('status', ['booked', 'checked_in']),
       ])
       setClasses(clsRes.data || [])
       setTrainers(trRes.data || [])
       setBookings(bkRes.data || [])
+      setAllBookings(abRes.data || [])
       setLoading(false)
     }
     if (profile) load()
@@ -53,7 +56,10 @@ export default function SchedulePage() {
   const getTrainer = (id) => trainers.find(t => t.id === id) || { name: 'TBA', specialty: '' }
   const canAccess = (type) => TIER_ACCESS[profile?.tier]?.includes(type)
   const isBooked = (classId) => bookings.some(b => b.class_id === classId && b.status !== 'cancelled')
-  const bookingCount = (classId) => bookings.filter(b => b.class_id === classId && b.status === 'booked').length
+  const spotsLeft = (classId, capacity) => {
+    const booked = allBookings.filter(b => b.class_id === classId).length
+    return capacity - booked
+  }
 
   const filtered = useMemo(() =>
     classes.filter(c => c.day === selDay && (selType === 'All' || c.type === selType)),
@@ -68,7 +74,15 @@ export default function SchedulePage() {
       // Cancel booking
       await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', existing.id)
       setBookings(prev => prev.filter(b => b.id !== existing.id))
+      setAllBookings(prev => {
+        const idx = prev.findIndex(b => b.class_id === cls.id)
+        if (idx === -1) return prev
+        return [...prev.slice(0, idx), ...prev.slice(idx + 1)]
+      })
     } else {
+      // Check capacity before booking
+      if (spotsLeft(cls.id, cls.capacity) <= 0) return
+
       // Create booking
       const { data, error } = await supabase.from('bookings').insert({
         class_id: cls.id,
@@ -76,7 +90,10 @@ export default function SchedulePage() {
         status: 'booked',
       }).select().single()
 
-      if (data) setBookings(prev => [...prev, data])
+      if (data) {
+        setBookings(prev => [...prev, data])
+        setAllBookings(prev => [...prev, { class_id: cls.id, status: 'booked' }])
+      }
     }
     setModal(null)
   }
@@ -145,19 +162,20 @@ export default function SchedulePage() {
           const tr = getTrainer(cls.trainer_id)
           const ok = canAccess(cls.type)
           const bd = isBooked(cls.id)
-          const spots = cls.capacity
+          const remaining = spotsLeft(cls.id, cls.capacity)
+          const full = remaining <= 0 && !bd
 
           return (
             <div
               key={cls.id}
-              onClick={() => ok && setModal(cls)}
+              onClick={() => ok && !full && setModal(cls)}
               style={{
                 background: '#FFFFFF',
-                border: '1px solid ' + (bd ? '#34C75920' : 'rgba(0,0,0,0.06)'),
+                border: '1px solid ' + (bd ? '#34C75920' : full ? '#FF3B3015' : 'rgba(0,0,0,0.06)'),
                 borderRadius: 14, padding: '16px 18px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                cursor: ok ? 'pointer' : 'default',
-                opacity: ok ? 1 : 0.35,
+                cursor: ok && !full ? 'pointer' : 'default',
+                opacity: ok ? (full ? 0.6 : 1) : 0.35,
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -165,6 +183,7 @@ export default function SchedulePage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                     <Bdg text={cls.type} color={tc[cls.type]} />
                     {bd && <Bdg text="Booked" color="#34C759" />}
+                    {full && <Bdg text="Full" color="#FF3B30" />}
                   </div>
                   <h3 style={{ color: '#1C1C1E', margin: '0 0 4px', fontSize: 16, fontWeight: 600 }}>
                     {tr.name}
@@ -172,7 +191,9 @@ export default function SchedulePage() {
                   <div style={{ display: 'flex', gap: 12, color: '#8E8E93', fontSize: 13 }}>
                     <span>{cls.time}</span>
                     <span>{cls.duration} min</span>
-                    <span>{spots} spots</span>
+                    <span style={{ color: remaining <= 3 && remaining > 0 ? '#FF9500' : remaining <= 0 ? '#FF3B30' : '#8E8E93' }}>
+                      {remaining}/{cls.capacity} spots
+                    </span>
                   </div>
                 </div>
                 <div style={{
@@ -193,6 +214,7 @@ export default function SchedulePage() {
       {modal && (() => {
         const tr = getTrainer(modal.trainer_id)
         const bd = isBooked(modal.id)
+        const remaining = spotsLeft(modal.id, modal.capacity)
 
         return (
           <div onClick={() => setModal(null)} style={{
@@ -233,29 +255,31 @@ export default function SchedulePage() {
                 {[
                   ['Day & Time', modal.day + ', ' + modal.time],
                   ['Duration', modal.duration + ' min'],
-                  ['Capacity', modal.capacity + ' spots'],
+                  ['Spots Left', remaining + '/' + modal.capacity],
                   ['Trainer', tr.name],
                 ].map(([l, v]) => (
                   <div key={l} style={{ background: '#F2F2F7', padding: '12px 14px', borderRadius: 12 }}>
                     <div style={{ color: '#8E8E93', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 4 }}>
                       {l}
                     </div>
-                    <div style={{ color: '#1C1C1E', fontSize: 14, fontWeight: 600 }}>{v}</div>
+                    <div style={{ color: l === 'Spots Left' && remaining <= 3 ? '#FF9500' : '#1C1C1E', fontSize: 14, fontWeight: 600 }}>{v}</div>
                   </div>
                 ))}
               </div>
 
               <button
                 onClick={() => handleBook(modal)}
+                disabled={!bd && remaining <= 0}
                 style={{
                   width: '100%', padding: 16, borderRadius: 14, border: 'none',
-                  background: bd ? '#F2F2F7' : '#007AFF',
-                  color: bd ? '#FF3B30' : '#fff',
-                  fontSize: 16, fontWeight: 600, cursor: 'pointer',
+                  background: bd ? '#F2F2F7' : remaining <= 0 ? '#E5E5EA' : '#007AFF',
+                  color: bd ? '#FF3B30' : remaining <= 0 ? '#8E8E93' : '#fff',
+                  fontSize: 16, fontWeight: 600,
+                  cursor: bd || remaining > 0 ? 'pointer' : 'default',
                   fontFamily: 'inherit',
                 }}
               >
-                {bd ? 'Cancel Booking' : 'Book Class'}
+                {bd ? 'Cancel Booking' : remaining <= 0 ? 'Class Full' : 'Book Class'}
               </button>
             </div>
           </div>
