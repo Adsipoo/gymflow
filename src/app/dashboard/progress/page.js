@@ -244,4 +244,3 @@ export default function ProgressPage() {
     </div>
   )
 }
-git add .
