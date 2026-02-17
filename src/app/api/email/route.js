@@ -35,6 +35,23 @@ const TEMPLATES = {
       + '<p style="font-size: 13px; color: #AEAEB2;">You can always book another class from the Schedule page.</p>'
       + '</div>',
   }),
+
+  waitlistSpotAvailable: ({ memberName, className, trainer, day, time, gymName }) => ({
+    subject: 'A spot opened up — ' + className,
+    html: '<div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 20px;">'
+      + '<div style="font-size: 11px; font-weight: 700; color: #8E8E93; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 20px;">'
+      + gymName
+      + '</div>'
+      + '<h1 style="font-size: 22px; font-weight: 700; color: #1C1C1E; margin: 0 0 8px;">A spot just opened up! 🎉</h1>'
+      + '<p style="font-size: 15px; color: #8E8E93; margin: 0 0 24px;">Hey ' + memberName + ', a spot opened up in a class you were waitlisted for.</p>'
+      + '<div style="background: #F2F2F7; border-radius: 16px; padding: 20px; margin-bottom: 24px;">'
+      + '<div style="font-size: 17px; font-weight: 700; color: #1C1C1E; margin-bottom: 4px;">' + className + '</div>'
+      + '<div style="font-size: 14px; color: #8E8E93; margin-bottom: 2px;">' + day + ' at ' + time + '</div>'
+      + (trainer ? '<div style="font-size: 14px; color: #8E8E93;">with ' + trainer + '</div>' : '')
+      + '</div>'
+      + '<p style="font-size: 13px; color: #AEAEB2;">Head to the app to book your spot before someone else does!</p>'
+      + '</div>',
+  }),
 }
 
 export async function POST(req) {

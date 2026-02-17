@@ -43,6 +43,8 @@ export default function SchedulePage() {
   const [trainers, setTrainers] = useState([])
   const [bookings, setBookings] = useState([])
   const [allBookings, setAllBookings] = useState([])
+  const [waitlist, setWaitlist] = useState([])
+  const [allWaitlist, setAllWaitlist] = useState([])
   const [selDay, setSelDay] = useState(todayDay)
   const [selType, setSelType] = useState('All')
   const [modal, setModal] = useState(null)
@@ -50,16 +52,20 @@ export default function SchedulePage() {
 
   useEffect(() => {
     async function load() {
-      const [clsRes, trRes, bkRes, abRes] = await Promise.all([
+      const [clsRes, trRes, bkRes, abRes, wlRes, awlRes] = await Promise.all([
         supabase.from('classes').select('*').order('time'),
         supabase.from('trainers').select('*'),
         supabase.from('bookings').select('*').eq('member_id', profile.id).in('status', ['booked', 'checked_in']),
         supabase.from('bookings').select('class_id, status').in('status', ['booked', 'checked_in']),
+        supabase.from('waitlist').select('*').eq('member_id', profile.id).eq('status', 'waiting'),
+        supabase.from('waitlist').select('class_id, member_id, status').eq('status', 'waiting'),
       ])
       setClasses(clsRes.data || [])
       setTrainers(trRes.data || [])
       setBookings(bkRes.data || [])
       setAllBookings(abRes.data || [])
+      setWaitlist(wlRes.data || [])
+      setAllWaitlist(awlRes.data || [])
       setLoading(false)
     }
     if (profile) load()
@@ -68,6 +74,8 @@ export default function SchedulePage() {
   const getTrainer = (id) => trainers.find(t => t.id === id) || { name: 'TBA', specialty: '' }
   const canAccess = (type) => TIER_ACCESS[profile?.tier]?.includes(type)
   const isBooked = (classId) => bookings.some(b => b.class_id === classId && b.status !== 'cancelled')
+  const isOnWaitlist = (classId) => waitlist.some(w => w.class_id === classId && w.status === 'waiting')
+  const waitlistCount = (classId) => allWaitlist.filter(w => w.class_id === classId).length
   const spotsLeft = (classId, capacity) => {
     const booked = allBookings.filter(b => b.class_id === classId).length
     return capacity - booked
@@ -102,11 +110,39 @@ export default function SchedulePage() {
         time: cls.time,
         gymName,
       })
+
+      // Notify first person on waitlist
+      const firstWaiting = allWaitlist.find(w => w.class_id === cls.id && w.member_id !== profile.id)
+      if (firstWaiting) {
+        // Fetch their profile to get email
+        const { data: waitingProfile } = await supabase
+          .from('profiles')
+          .select('email, full_name')
+          .eq('id', firstWaiting.member_id)
+          .single()
+
+        if (waitingProfile) {
+          sendEmail('waitlistSpotAvailable', waitingProfile.email, {
+            memberName: waitingProfile.full_name,
+            className: cls.type,
+            trainer: tr.name,
+            day: cls.day,
+            time: cls.time,
+            gymName,
+          })
+
+          // Mark them as notified
+          await supabase
+            .from('waitlist')
+            .update({ status: 'notified' })
+            .eq('class_id', cls.id)
+            .eq('member_id', firstWaiting.member_id)
+            .eq('status', 'waiting')
+        }
+      }
     } else {
-      // Check capacity before booking
       if (spotsLeft(cls.id, cls.capacity) <= 0) return
 
-      // Create booking
       const { data, error } = await supabase.from('bookings').insert({
         class_id: cls.id,
         member_id: profile.id,
@@ -117,7 +153,6 @@ export default function SchedulePage() {
         setBookings(prev => [...prev, data])
         setAllBookings(prev => [...prev, { class_id: cls.id, status: 'booked' }])
 
-        // Send confirmation email
         sendEmail('bookingConfirmed', profile.email, {
           memberName: profile.full_name,
           className: cls.type,
@@ -126,6 +161,30 @@ export default function SchedulePage() {
           time: cls.time,
           gymName,
         })
+      }
+    }
+    setModal(null)
+  }
+
+  const handleWaitlist = async (cls) => {
+    const existing = waitlist.find(w => w.class_id === cls.id && w.status === 'waiting')
+
+    if (existing) {
+      // Leave waitlist
+      await supabase.from('waitlist').delete().eq('id', existing.id)
+      setWaitlist(prev => prev.filter(w => w.id !== existing.id))
+      setAllWaitlist(prev => prev.filter(w => !(w.class_id === cls.id && w.member_id === profile.id)))
+    } else {
+      // Join waitlist
+      const { data } = await supabase.from('waitlist').insert({
+        class_id: cls.id,
+        member_id: profile.id,
+        status: 'waiting',
+      }).select().single()
+
+      if (data) {
+        setWaitlist(prev => [...prev, data])
+        setAllWaitlist(prev => [...prev, { class_id: cls.id, member_id: profile.id, status: 'waiting' }])
       }
     }
     setModal(null)
@@ -195,20 +254,22 @@ export default function SchedulePage() {
           const tr = getTrainer(cls.trainer_id)
           const ok = canAccess(cls.type)
           const bd = isBooked(cls.id)
+          const onWl = isOnWaitlist(cls.id)
           const remaining = spotsLeft(cls.id, cls.capacity)
           const full = remaining <= 0 && !bd
+          const wlCount = waitlistCount(cls.id)
 
           return (
             <div
               key={cls.id}
-              onClick={() => ok && !full && setModal(cls)}
+              onClick={() => ok && setModal(cls)}
               style={{
                 background: '#FFFFFF',
-                border: '1px solid ' + (bd ? '#34C75920' : full ? '#FF3B3015' : 'rgba(0,0,0,0.06)'),
+                border: '1px solid ' + (bd ? '#34C75920' : onWl ? '#FF950020' : full ? '#FF3B3015' : 'rgba(0,0,0,0.06)'),
                 borderRadius: 14, padding: '16px 18px',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                cursor: ok && !full ? 'pointer' : 'default',
-                opacity: ok ? (full ? 0.6 : 1) : 0.35,
+                cursor: ok ? 'pointer' : 'default',
+                opacity: ok ? 1 : 0.35,
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -216,7 +277,8 @@ export default function SchedulePage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                     <Bdg text={cls.type} color={tc[cls.type]} />
                     {bd && <Bdg text="Booked" color="#34C759" />}
-                    {full && <Bdg text="Full" color="#FF3B30" />}
+                    {onWl && <Bdg text="Waitlisted" color="#FF9500" />}
+                    {full && !bd && !onWl && <Bdg text="Full" color="#FF3B30" />}
                   </div>
                   <h3 style={{ color: '#1C1C1E', margin: '0 0 4px', fontSize: 16, fontWeight: 600 }}>
                     {tr.name}
@@ -227,6 +289,11 @@ export default function SchedulePage() {
                     <span style={{ color: remaining <= 3 && remaining > 0 ? '#FF9500' : remaining <= 0 ? '#FF3B30' : '#8E8E93' }}>
                       {remaining}/{cls.capacity} spots
                     </span>
+                    {wlCount > 0 && (
+                      <span style={{ color: '#FF9500' }}>
+                        {wlCount} waiting
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div style={{
@@ -247,7 +314,9 @@ export default function SchedulePage() {
       {modal && (() => {
         const tr = getTrainer(modal.trainer_id)
         const bd = isBooked(modal.id)
+        const onWl = isOnWaitlist(modal.id)
         const remaining = spotsLeft(modal.id, modal.capacity)
+        const wlCount = waitlistCount(modal.id)
 
         return (
           <div onClick={() => setModal(null)} style={{
@@ -289,31 +358,63 @@ export default function SchedulePage() {
                   ['Day & Time', modal.day + ', ' + modal.time],
                   ['Duration', modal.duration + ' min'],
                   ['Spots Left', remaining + '/' + modal.capacity],
-                  ['Trainer', tr.name],
+                  ['Waitlist', wlCount > 0 ? wlCount + ' waiting' : 'No one waiting'],
                 ].map(([l, v]) => (
                   <div key={l} style={{ background: '#F2F2F7', padding: '12px 14px', borderRadius: 12 }}>
                     <div style={{ color: '#8E8E93', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 4 }}>
                       {l}
                     </div>
-                    <div style={{ color: l === 'Spots Left' && remaining <= 3 ? '#FF9500' : '#1C1C1E', fontSize: 14, fontWeight: 600 }}>{v}</div>
+                    <div style={{ color: l === 'Spots Left' && remaining <= 3 ? '#FF9500' : l === 'Waitlist' && wlCount > 0 ? '#FF9500' : '#1C1C1E', fontSize: 14, fontWeight: 600 }}>{v}</div>
                   </div>
                 ))}
               </div>
 
-              <button
-                onClick={() => handleBook(modal)}
-                disabled={!bd && remaining <= 0}
-                style={{
-                  width: '100%', padding: 16, borderRadius: 14, border: 'none',
-                  background: bd ? '#F2F2F7' : remaining <= 0 ? '#E5E5EA' : '#007AFF',
-                  color: bd ? '#FF3B30' : remaining <= 0 ? '#8E8E93' : '#fff',
-                  fontSize: 16, fontWeight: 600,
-                  cursor: bd || remaining > 0 ? 'pointer' : 'default',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {bd ? 'Cancel Booking' : remaining <= 0 ? 'Class Full' : 'Book Class'}
-              </button>
+              {/* Main action button */}
+              {bd ? (
+                <button
+                  onClick={() => handleBook(modal)}
+                  style={{
+                    width: '100%', padding: 16, borderRadius: 14, border: 'none',
+                    background: '#F2F2F7', color: '#FF3B30',
+                    fontSize: 16, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Cancel Booking
+                </button>
+              ) : remaining > 0 ? (
+                <button
+                  onClick={() => handleBook(modal)}
+                  style={{
+                    width: '100%', padding: 16, borderRadius: 14, border: 'none',
+                    background: '#007AFF', color: '#fff',
+                    fontSize: 16, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Book Class
+                </button>
+              ) : onWl ? (
+                <button
+                  onClick={() => handleWaitlist(modal)}
+                  style={{
+                    width: '100%', padding: 16, borderRadius: 14, border: 'none',
+                    background: '#FF950015', color: '#FF9500',
+                    fontSize: 16, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Leave Waitlist
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleWaitlist(modal)}
+                  style={{
+                    width: '100%', padding: 16, borderRadius: 14, border: 'none',
+                    background: '#FF9500', color: '#fff',
+                    fontSize: 16, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                >
+                  Join Waitlist
+                </button>
+              )}
             </div>
           </div>
         )
