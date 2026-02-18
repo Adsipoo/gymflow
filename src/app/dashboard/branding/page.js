@@ -20,11 +20,17 @@ const inputStyle = {
   boxSizing: 'border-box',
 }
 
+const labelStyle = {
+  color: '#8E8E93', fontSize: 12, fontWeight: 600,
+  textTransform: 'uppercase', letterSpacing: 0.3,
+}
+
 export default function AdminBrandingPage() {
   const { gym, supabase } = useUser()
   const [name, setName] = useState(gym?.name || '')
   const [tagline, setTagline] = useState(gym?.tagline || '')
   const [theme, setTheme] = useState(gym?.theme || 'clean')
+  const [trialDays, setTrialDays] = useState(gym?.trial_days ?? 7)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -35,6 +41,7 @@ export default function AdminBrandingPage() {
       name,
       tagline,
       theme,
+      trial_days: trialDays,
     }).eq('id', gym.id)
     setSaving(false)
     setSaved(true)
@@ -51,26 +58,20 @@ export default function AdminBrandingPage() {
             Branding
           </h1>
           <p style={{ color: '#8E8E93', fontSize: 14, margin: 0 }}>
-            Customise your gym's look and feel
+            Customise your venue's look, feel and settings
           </p>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          style={{
-            background: saved ? '#34C759' : '#007AFF',
-            color: '#fff', border: 'none',
-            padding: '10px 20px', borderRadius: 12, fontSize: 14,
-            fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-            display: 'flex', alignItems: 'center', gap: 6,
-            opacity: saving ? 0.6 : 1,
-          }}
-        >
+        <button onClick={handleSave} disabled={saving} style={{
+          background: saved ? '#34C759' : '#007AFF',
+          color: '#fff', border: 'none',
+          padding: '10px 20px', borderRadius: 12, fontSize: 14,
+          fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', gap: 6,
+          opacity: saving ? 0.6 : 1,
+        }}>
           {saved ? (
             <>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff">
-                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-              </svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#fff"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
               Saved
             </>
           ) : saving ? 'Saving...' : 'Save'}
@@ -84,77 +85,74 @@ export default function AdminBrandingPage() {
         boxShadow: '0 4px 24px rgba(0,0,0,0.08)', marginBottom: 24,
         position: 'relative', overflow: 'hidden',
       }}>
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: 4,
-          background: currentTheme.colors[0],
-        }} />
-        <div style={{
-          fontSize: 11, fontWeight: 700, color: currentTheme.colors[0],
-          letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4, marginTop: 8,
-        }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: currentTheme.colors[0] }} />
+        <div style={{ fontSize: 11, fontWeight: 700, color: currentTheme.colors[0], letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4, marginTop: 8 }}>
           Preview
         </div>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#8E8E93', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8 }}>
-          {name || 'Your Gym Name'}
+          {name || 'Your Venue Name'}
         </div>
-        <div style={{ fontSize: 22, fontWeight: 700, color: '#1C1C1E', marginBottom: 4 }}>
-          Welcome back
-        </div>
-        <div style={{ fontSize: 14, color: '#8E8E93' }}>
-          {tagline || 'Your tagline here'}
-        </div>
+        <div style={{ fontSize: 22, fontWeight: 700, color: '#1C1C1E', marginBottom: 4 }}>Welcome back</div>
+        <div style={{ fontSize: 14, color: '#8E8E93' }}>{tagline || 'Your tagline here'}</div>
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          <div style={{
-            padding: '8px 16px', borderRadius: 10,
-            background: currentTheme.colors[0], color: '#fff',
-            fontSize: 13, fontWeight: 600,
-          }}>
-            Book Class
-          </div>
-          <div style={{
-            padding: '8px 16px', borderRadius: 10,
-            background: currentTheme.colors[0] + '10',
-            color: currentTheme.colors[0],
-            fontSize: 13, fontWeight: 600,
-          }}>
-            View Schedule
-          </div>
+          <div style={{ padding: '8px 16px', borderRadius: 10, background: currentTheme.colors[0], color: '#fff', fontSize: 13, fontWeight: 600 }}>Book Class</div>
+          <div style={{ padding: '8px 16px', borderRadius: 10, background: currentTheme.colors[0] + '10', color: currentTheme.colors[0], fontSize: 13, fontWeight: 600 }}>View Schedule</div>
         </div>
       </div>
 
-      {/* Gym Details */}
+      {/* Venue Details */}
       <div style={{
         background: '#FFFFFF', borderRadius: 16, padding: 24,
         border: '1px solid rgba(0,0,0,0.06)',
         boxShadow: '0 1px 3px rgba(0,0,0,0.06)', marginBottom: 16,
       }}>
-        <h3 style={{ fontSize: 17, fontWeight: 600, color: '#1C1C1E', margin: '0 0 16px' }}>
-          Gym Details
-        </h3>
+        <h3 style={{ fontSize: 17, fontWeight: 600, color: '#1C1C1E', margin: '0 0 16px' }}>Venue Details</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label style={{ color: '#8E8E93', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3 }}>
-              Gym Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="Enter gym name"
-              style={{ ...inputStyle, marginTop: 6 }}
-            />
+            <label style={labelStyle}>Venue Name</label>
+            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Enter venue name" style={{ ...inputStyle, marginTop: 6 }} />
           </div>
           <div>
-            <label style={{ color: '#8E8E93', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3 }}>
-              Tagline
-            </label>
+            <label style={labelStyle}>Tagline</label>
+            <input type="text" value={tagline} onChange={e => setTagline(e.target.value)} placeholder="A short description for your venue" style={{ ...inputStyle, marginTop: 6 }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Membership Settings */}
+      <div style={{
+        background: '#FFFFFF', borderRadius: 16, padding: 24,
+        border: '1px solid rgba(0,0,0,0.06)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06)', marginBottom: 16,
+      }}>
+        <h3 style={{ fontSize: 17, fontWeight: 600, color: '#1C1C1E', margin: '0 0 4px' }}>Membership Settings</h3>
+        <p style={{ color: '#8E8E93', fontSize: 13, margin: '0 0 16px' }}>Configure defaults for new members joining your venue</p>
+
+        <div>
+          <label style={labelStyle}>Free Trial Period</label>
+          <p style={{ color: '#8E8E93', fontSize: 12, margin: '2px 0 8px' }}>
+            How many days new members get free before their subscription starts
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <input
-              type="text"
-              value={tagline}
-              onChange={e => setTagline(e.target.value)}
-              placeholder="A short description for your gym"
-              style={{ ...inputStyle, marginTop: 6 }}
+              type="number"
+              min={0}
+              max={90}
+              value={trialDays}
+              onChange={e => setTrialDays(parseInt(e.target.value) || 0)}
+              style={{ ...inputStyle, width: 100 }}
             />
+            <span style={{ color: '#8E8E93', fontSize: 14, fontWeight: 500 }}>days</span>
+            {trialDays === 0 && (
+              <span style={{ fontSize: 12, color: '#FF9500', fontWeight: 600, background: '#FF950010', padding: '4px 10px', borderRadius: 8 }}>
+                No trial
+              </span>
+            )}
+            {trialDays > 0 && (
+              <span style={{ fontSize: 12, color: '#34C759', fontWeight: 600, background: '#34C75910', padding: '4px 10px', borderRadius: 8 }}>
+                {trialDays}-day free trial
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -165,27 +163,18 @@ export default function AdminBrandingPage() {
         border: '1px solid rgba(0,0,0,0.06)',
         boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
       }}>
-        <h3 style={{ fontSize: 17, fontWeight: 600, color: '#1C1C1E', margin: '0 0 16px' }}>
-          Theme
-        </h3>
+        <h3 style={{ fontSize: 17, fontWeight: 600, color: '#1C1C1E', margin: '0 0 16px' }}>Theme</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
           {THEMES.map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTheme(t.id)}
-              style={{
-                background: theme === t.id ? t.colors[0] + '08' : '#F2F2F7',
-                border: '2px solid ' + (theme === t.id ? t.colors[0] : 'transparent'),
-                borderRadius: 14, padding: 16, cursor: 'pointer',
-                fontFamily: 'inherit', textAlign: 'center',
-              }}
-            >
+            <button key={t.id} onClick={() => setTheme(t.id)} style={{
+              background: theme === t.id ? t.colors[0] + '08' : '#F2F2F7',
+              border: '2px solid ' + (theme === t.id ? t.colors[0] : 'transparent'),
+              borderRadius: 14, padding: 16, cursor: 'pointer',
+              fontFamily: 'inherit', textAlign: 'center',
+            }}>
               <div style={{ display: 'flex', justifyContent: 'center', gap: 4, marginBottom: 8 }}>
                 {t.colors.map((c, i) => (
-                  <div key={i} style={{
-                    width: 20, height: 20, borderRadius: 6,
-                    background: c, border: '1px solid rgba(0,0,0,0.1)',
-                  }} />
+                  <div key={i} style={{ width: 20, height: 20, borderRadius: 6, background: c, border: '1px solid rgba(0,0,0,0.1)' }} />
                 ))}
               </div>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#1C1C1E' }}>{t.name}</div>

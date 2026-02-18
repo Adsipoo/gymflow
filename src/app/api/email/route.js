@@ -3,6 +3,19 @@ import { Resend } from 'resend'
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 const TEMPLATES = {
+  gymNotification: ({ memberName, subject, message, gymName }) => ({
+    subject,
+    html: '<div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 20px;">'
+      + '<div style="font-size: 11px; font-weight: 700; color: #8E8E93; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 20px;">' + gymName + '</div>'
+      + '<h1 style="font-size: 22px; font-weight: 700; color: #1C1C1E; margin: 0 0 8px;">' + subject + '</h1>'
+      + '<p style="font-size: 15px; color: #8E8E93; margin: 0 0 24px;">Hey ' + memberName + ',</p>'
+      + '<div style="background: #F2F2F7; border-radius: 16px; padding: 20px; margin-bottom: 24px;">'
+      + '<p style="font-size: 15px; color: #1C1C1E; margin: 0; line-height: 1.6;">' + message.replace(/\n/g, '<br>') + '</p>'
+      + '</div>'
+      + '<p style="font-size: 13px; color: #AEAEB2;">— The ' + gymName + ' team</p>'
+      + '</div>',
+  }),
+
   bookingConfirmed: ({ memberName, className, trainer, day, time, gymName }) => ({
     subject: 'Booking Confirmed — ' + className,
     html: '<div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 20px;">'

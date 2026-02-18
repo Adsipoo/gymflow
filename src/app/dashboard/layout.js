@@ -21,6 +21,7 @@ const IC = {
   palette: "M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-1 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8z",
   fitness: "M20.57 14.86L22 13.43 20.57 12 17 15.57 8.43 7 12 3.43 10.57 2 9.14 3.43 7.71 2 5.57 4.14 4.14 2.71 2.71 4.14l1.43 1.43L2 7.71l1.43 1.43L2 10.57 3.43 12 7 8.43 15.57 17 12 20.57 13.43 22l1.43-1.43L16.29 22l2.14-2.14 1.43 1.43 1.43-1.43-1.43-1.43L22 16.29z",
   logout: "M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z",
+  bell: "M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.64-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.63 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2z",
 }
 
 function NavIcon({ d, active, color, size }) {
@@ -44,6 +45,7 @@ const adminNav = [
   { id: '/dashboard/classes', label: 'Classes', icon: IC.list },
   { id: '/dashboard/members', label: 'Members', icon: IC.people },
   { id: '/dashboard/reviews', label: 'Reviews', icon: IC.star },
+  { id: '/dashboard/notifications', label: 'Notify', icon: IC.bell },
   { id: '/dashboard/branding', label: 'Brand', icon: IC.palette },
   { id: '/dashboard/trainers', label: 'Trainers', icon: IC.fitness },
   { id: '/dashboard/account', label: 'Account', icon: IC.person },
@@ -53,6 +55,7 @@ export default function DashboardLayout({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [gym, setGym] = useState(null)
+  const [membership, setMembership] = useState(null) // { tier_id, status, ... }
   const [tierLabel, setTierLabel] = useState('Member')
   const [loading, setLoading] = useState(true)
   const [isMobile, setIsMobile] = useState(true)
@@ -92,18 +95,17 @@ export default function DashboardLayout({ children }) {
         gymData = data
         setTierLabel('Owner')
       } else {
-        // For members, get their most recent gym via gym_memberships
+        // For members, get their most recent active gym membership
         const { data } = await supabase
           .from('gym_memberships')
-          .select('gyms(*), membership_tiers(name)')
+          .select('*, gyms(*), membership_tiers(name)')
           .eq('member_id', prof.id)
           .order('created_at', { ascending: false })
           .limit(1)
           .single()
         gymData = data?.gyms || null
-        if (data?.membership_tiers?.name) {
-          setTierLabel(data.membership_tiers.name)
-        }
+        if (data?.membership_tiers?.name) setTierLabel(data.membership_tiers.name)
+        if (data) setMembership(data) // exposes tier_id, status, etc. to all pages
       }
 
       setGym(gymData)
@@ -134,7 +136,7 @@ export default function DashboardLayout({ children }) {
   const nav = isAdmin ? adminNav : memberNav
 
   return (
-    <UserCtx.Provider value={{ user, profile, gym, supabase, setProfile }}>
+    <UserCtx.Provider value={{ user, profile, gym, membership, supabase, setProfile }}>
       <div style={{ minHeight: '100vh', background: '#F2F2F7', fontFamily: font, display: 'flex' }}>
 
         {/* Desktop Sidebar */}
