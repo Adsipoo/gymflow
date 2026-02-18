@@ -53,6 +53,7 @@ export default function DashboardLayout({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [gym, setGym] = useState(null)
+  const [tierLabel, setTierLabel] = useState('Member')
   const [loading, setLoading] = useState(true)
   const [isMobile, setIsMobile] = useState(true)
   const supabase = createSupabaseBrowser()
@@ -71,7 +72,6 @@ export default function DashboardLayout({ children }) {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
-
       setUser(user)
 
       const { data: prof } = await supabase
@@ -83,27 +83,30 @@ export default function DashboardLayout({ children }) {
 
       let gymData = null
 
-if (prof.role === 'owner') {
-  const { data } = await supabase
-    .from('gyms')
-    .select('*')
-    .eq('owner_id', prof.id)
-    .single()
-  gymData = data
-} else {
-  // For members, get their gym via gym_memberships
-  const { data } = await supabase
-  .from('gym_memberships')
-  .select('gyms(*)')
-  .eq('member_id', prof.id)
-  .order('created_at', { ascending: false })
-  .limit(1)
-  .single()
-gymData = data?.gyms || null
-}
+      if (prof.role === 'owner') {
+        const { data } = await supabase
+          .from('gyms')
+          .select('*')
+          .eq('owner_id', prof.id)
+          .single()
+        gymData = data
+        setTierLabel('Owner')
+      } else {
+        // For members, get their most recent gym via gym_memberships
+        const { data } = await supabase
+          .from('gym_memberships')
+          .select('gyms(*), membership_tiers(name)')
+          .eq('member_id', prof.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+        gymData = data?.gyms || null
+        if (data?.membership_tiers?.name) {
+          setTierLabel(data.membership_tiers.name)
+        }
+      }
 
-setGym(gymData)
-
+      setGym(gymData)
       setLoading(false)
     }
     load()
@@ -129,7 +132,6 @@ setGym(gymData)
 
   const isAdmin = profile?.role === 'admin' || profile?.role === 'owner'
   const nav = isAdmin ? adminNav : memberNav
-  const tierLabel = profile?.tier === 'allAccess' ? 'All-Access' : profile?.tier ? profile.tier.charAt(0).toUpperCase() + profile.tier.slice(1) : 'Basic'
 
   return (
     <UserCtx.Provider value={{ user, profile, gym, supabase, setProfile }}>
@@ -140,10 +142,8 @@ setGym(gymData)
           <div style={{
             width: 240, background: '#FFFFFF', borderRight: '1px solid rgba(0,0,0,0.06)',
             display: 'flex', flexDirection: 'column', position: 'fixed',
-            top: 0, left: 0, bottom: 0, zIndex: 100,
-            padding: '24px 0',
+            top: 0, left: 0, bottom: 0, zIndex: 100, padding: '24px 0',
           }}>
-            {/* Logo / Gym Name */}
             <div style={{ padding: '0 20px 24px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
               <div style={{
                 fontSize: 11, fontWeight: 700, color: '#8E8E93',
@@ -166,14 +166,11 @@ setGym(gymData)
               </div>
             </div>
 
-            {/* Nav Items */}
             <div style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
               {nav.map(n => {
                 const active = pathname === n.id
                 return (
-                  <button
-                    key={n.id}
-                    onClick={() => router.push(n.id)}
+                  <button key={n.id} onClick={() => router.push(n.id)}
                     style={{
                       background: active ? accent + '0A' : 'transparent',
                       border: 'none', cursor: 'pointer',
@@ -194,10 +191,8 @@ setGym(gymData)
               })}
             </div>
 
-            {/* Sign Out */}
             <div style={{ padding: '16px 12px', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-              <button
-                onClick={handleSignOut}
+              <button onClick={handleSignOut}
                 style={{
                   background: 'transparent', border: 'none', cursor: 'pointer',
                   display: 'flex', alignItems: 'center', gap: 12,
@@ -206,21 +201,13 @@ setGym(gymData)
                 }}
               >
                 <NavIcon d={IC.logout} active={false} color="#FF3B30" size={20} />
-                <span style={{ fontSize: 14, fontWeight: 500, color: '#8E8E93' }}>
-                  Sign out
-                </span>
+                <span style={{ fontSize: 14, fontWeight: 500, color: '#8E8E93' }}>Sign out</span>
               </button>
             </div>
           </div>
         )}
 
-        {/* Main Content */}
-        <div style={{
-          flex: 1,
-          marginLeft: isMobile ? 0 : 240,
-          minHeight: '100vh',
-        }}>
-          {/* Mobile Header */}
+        <div style={{ flex: 1, marginLeft: isMobile ? 0 : 240, minHeight: '100vh' }}>
           {isMobile && (
             <div style={{
               background: '#FFFFFF', borderBottom: '1px solid rgba(0,0,0,0.06)',
@@ -251,10 +238,8 @@ setGym(gymData)
             </div>
           )}
 
-          {/* Page Content */}
           {children}
 
-          {/* Mobile Bottom Nav */}
           {isMobile && (
             <div style={{
               position: 'fixed', bottom: 0, left: 0, right: 0,
@@ -263,9 +248,7 @@ setGym(gymData)
               padding: '6px 0 10px', zIndex: 100,
             }}>
               {nav.map(n => (
-                <button
-                  key={n.id}
-                  onClick={() => router.push(n.id)}
+                <button key={n.id} onClick={() => router.push(n.id)}
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer',
                     display: 'flex', flexDirection: 'column', alignItems: 'center',
