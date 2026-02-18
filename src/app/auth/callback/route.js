@@ -10,13 +10,13 @@ export async function GET(request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
-      // Check if profile exists, if not create one
       const { data: { user } } = await supabase.auth.getUser()
-      
+
       if (user) {
+        // Check if profile exists, if not create one
         const { data: profile } = await supabase
           .from('profiles')
-          .select('id')
+          .select('id, onboarding_complete')
           .eq('id', user.id)
           .single()
 
@@ -26,13 +26,20 @@ export async function GET(request) {
             email: user.email,
             full_name: user.user_metadata?.full_name || user.email.split('@')[0],
             role: 'member',
-            tier: 'basic',
             status: 'pending',
+            onboarding_complete: false
           })
+          // New user — send to onboarding
+          return NextResponse.redirect(`${origin}/onboarding`)
+        }
+
+        // Existing user — send to correct place
+        if (profile.onboarding_complete) {
+          return NextResponse.redirect(`${origin}/dashboard`)
+        } else {
+          return NextResponse.redirect(`${origin}/onboarding`)
         }
       }
-
-      return NextResponse.redirect(`${origin}/dashboard`)
     }
   }
 

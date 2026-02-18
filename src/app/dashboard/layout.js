@@ -81,12 +81,28 @@ export default function DashboardLayout({ children }) {
         .single()
       setProfile(prof)
 
-      const { data: gymData } = await supabase
-  .from('gyms')
-  .select('*')
-  .eq('owner_id', prof.id)
+      let gymData = null
+
+if (prof.role === 'owner') {
+  const { data } = await supabase
+    .from('gyms')
+    .select('*')
+    .eq('owner_id', prof.id)
+    .single()
+  gymData = data
+} else {
+  // For members, get their gym via gym_memberships
+  const { data } = await supabase
+  .from('gym_memberships')
+  .select('gyms(*)')
+  .eq('member_id', prof.id)
+  .order('created_at', { ascending: false })
+  .limit(1)
   .single()
-      setGym(gymData)
+gymData = data?.gyms || null
+}
+
+setGym(gymData)
 
       setLoading(false)
     }
