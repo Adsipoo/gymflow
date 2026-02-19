@@ -97,13 +97,22 @@ export default function DashboardLayout({ children }) {
         gymData = data
         setTierLabel('Owner')
       } else {
-        const { data } = await supabase
+        // Check localStorage for active gym picked by user
+        const activeGymId = localStorage.getItem('activeGymId')
+
+        const query = supabase
           .from('gym_memberships')
           .select('*, gyms(*), membership_tiers(name)')
           .eq('member_id', prof.id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single()
+
+        // If they picked a gym, load that one specifically
+        const finalQuery = activeGymId
+          ? supabase.from('gym_memberships').select('*, gyms(*), membership_tiers(name)').eq('member_id', prof.id).eq('gym_id', activeGymId).single()
+          : query.single()
+
+        const { data } = await finalQuery
         gymData = data?.gyms || null
         if (data?.membership_tiers?.name) setTierLabel(data.membership_tiers.name)
         if (data) setMembership(data)
@@ -116,6 +125,7 @@ export default function DashboardLayout({ children }) {
   }, [])
 
   const handleSignOut = async () => {
+    localStorage.removeItem('activeGymId')
     await supabase.auth.signOut()
     router.push('/login')
   }
@@ -154,7 +164,7 @@ export default function DashboardLayout({ children }) {
               }}>
                 {gym?.name || 'Humanitix Wellness'}
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {isAdmin && (
                   <span style={{
                     background: accent + '10', border: '1px solid ' + accent + '25',
@@ -166,6 +176,13 @@ export default function DashboardLayout({ children }) {
                   fontSize: 10, fontWeight: 600, color: '#34C759',
                   background: '#34C75914', padding: '3px 8px', borderRadius: 6,
                 }}>{tierLabel}</span>
+                {!isAdmin && (
+                  <button onClick={() => router.push('/pick-venue')} style={{
+                    background: accent + '10', border: 'none', color: accent,
+                    padding: '3px 8px', borderRadius: 6, fontSize: 10,
+                    fontWeight: 600, cursor: 'pointer', fontFamily: font,
+                  }}>Switch ⇄</button>
+                )}
               </div>
             </div>
 
@@ -232,6 +249,13 @@ export default function DashboardLayout({ children }) {
                   fontSize: 11, fontWeight: 600, color: '#34C759',
                   background: '#34C75914', padding: '4px 10px', borderRadius: 6,
                 }}>{tierLabel}</span>
+                {!isAdmin && (
+                  <button onClick={() => router.push('/pick-venue')} style={{
+                    background: accent + '10', border: 'none', color: accent,
+                    padding: '4px 10px', borderRadius: 6, fontSize: 11,
+                    fontWeight: 600, cursor: 'pointer', fontFamily: font,
+                  }}>Switch ⇄</button>
+                )}
                 <button onClick={handleSignOut} style={{
                   background: 'none', border: '1px solid rgba(0,0,0,0.08)',
                   color: '#8E8E93', padding: '4px 10px', borderRadius: 6,

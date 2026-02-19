@@ -17,14 +17,38 @@ export default function LoginPage() {
   const redirectAfterAuth = async (userId) => {
     const { data: profile } = await supabase
       .from('profiles')
-      .select('onboarding_complete')
+      .select('onboarding_complete, role')
       .eq('id', userId)
       .single()
 
-    if (profile?.onboarding_complete) {
+    if (!profile?.onboarding_complete) {
+      router.push('/onboarding')
+      return
+    }
+
+    // Owners always go straight to dashboard
+    if (profile.role === 'owner') {
+      router.push('/dashboard')
+      return
+    }
+
+    // For members, check how many active memberships they have
+    const { data: memberships } = await supabase
+      .from('gym_memberships')
+      .select('gym_id')
+      .eq('member_id', userId)
+      .in('status', ['active', 'trialing'])
+
+    if (memberships && memberships.length > 1) {
+      // Multiple venues — show picker
+      router.push('/pick-venue')
+    } else if (memberships && memberships.length === 1) {
+      // Single venue — store it and go to dashboard
+      localStorage.setItem('activeGymId', memberships[0].gym_id)
       router.push('/dashboard')
     } else {
-      router.push('/onboarding')
+      // No memberships yet
+      router.push('/dashboard')
     }
   }
 
@@ -94,7 +118,6 @@ export default function LoginPage() {
           background: '#FFFFFF', borderRadius: 20, padding: 32,
           border: '1px solid rgba(0,0,0,0.06)', boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
         }}>
-          {/* Google Sign In */}
           <button onClick={handleGoogle} disabled={loading} style={{
             width: '100%', padding: 14, borderRadius: 12, border: '1px solid rgba(0,0,0,0.1)',
             background: '#fff', color: '#1C1C1E', fontSize: 15, fontWeight: 600,
@@ -110,14 +133,12 @@ export default function LoginPage() {
             Continue with Google
           </button>
 
-          {/* Divider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24, color: '#8E8E93', fontSize: 13 }}>
             <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.08)' }} />
             or
             <div style={{ flex: 1, height: 1, background: 'rgba(0,0,0,0.08)' }} />
           </div>
 
-          {/* Email Form */}
           <form onSubmit={handleEmail} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {mode === 'signup' && (
               <input type="text" placeholder="Full name" value={fullName}
@@ -149,7 +170,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Toggle mode */}
           <div style={{ textAlign: 'center', marginTop: 20 }}>
             <button onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(null) }}
               style={{ background: 'none', border: 'none', color: '#007AFF', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' }}>
