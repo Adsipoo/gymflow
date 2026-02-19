@@ -45,11 +45,10 @@ export default function VenuePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tierId: tier.id,
-          gymId: venue.id,
-          memberId: profile.id,
-          email: profile.email,
-        }),
+  tierId: tier.id,
+  gymId: venue.id,
+  userId: profile.id,
+}),
       })
       const { url, error } = await res.json()
       if (error) throw new Error(error)

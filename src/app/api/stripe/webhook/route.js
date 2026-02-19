@@ -28,12 +28,11 @@ export async function POST(req) {
   try {
     switch (event.type) {
 
-      // Member completes checkout (trial starts or immediate subscription)
       case 'checkout.session.completed': {
         const session = event.data.object
         const { userId, gymId, tierId } = session.metadata
         console.log('Session metadata:', session.metadata)
-console.log('Session subscription:', session.subscription)
+        console.log('Session subscription:', session.subscription)
 
         if (!userId || !gymId || !tierId) {
           console.log('Missing metadata — skipping (old payment flow)')
@@ -41,18 +40,15 @@ console.log('Session subscription:', session.subscription)
         }
 
         const subscriptionId = session.subscription
-
-        // Get subscription details from Stripe
         const subscription = await stripe.subscriptions.retrieve(subscriptionId)
         const trialEnd = subscription.trial_end
-  ? new Date(subscription.trial_end * 1000).toISOString()
-  : null
-const periodEnd = subscription.current_period_end
-  ? new Date(subscription.current_period_end * 1000).toISOString()
-  : null
-        const status = subscription.status // 'trialing' or 'active'
+          ? new Date(subscription.trial_end * 1000).toISOString()
+          : null
+        const periodEnd = subscription.current_period_end
+          ? new Date(subscription.current_period_end * 1000).toISOString()
+          : null
+        const status = subscription.status
 
-        // Create gym_membership record
         const { error: membershipError } = await supabase
           .from('gym_memberships')
           .upsert({
@@ -67,7 +63,6 @@ const periodEnd = subscription.current_period_end
 
         if (membershipError) console.error('Membership upsert error:', membershipError)
 
-        // Update profile to active + mark onboarding complete
         const { error: profileError } = await supabase
           .from('profiles')
           .update({ status: 'active', onboarding_complete: true })
@@ -75,7 +70,6 @@ const periodEnd = subscription.current_period_end
 
         if (profileError) console.error('Profile update error:', profileError)
 
-        // Log payment
         const { error: paymentError } = await supabase
           .from('payments')
           .insert({
@@ -91,17 +85,21 @@ const periodEnd = subscription.current_period_end
         break
       }
 
-      // Subscription updated (upgrade, downgrade, trial ended)
       case 'customer.subscription.updated': {
         const subscription = event.data.object
-        const { userId, gymId, tierId } = subscription.metadata
+        const { userId, gymId, tierId } = subscription.metadata || {}
 
-        if (!userId || !gymId) break
+        if (!userId || !gymId) {
+          console.log('No metadata on subscription.updated — skipping')
+          break
+        }
 
         const trialEnd = subscription.trial_end
           ? new Date(subscription.trial_end * 1000).toISOString()
           : null
-        const periodEnd = new Date(subscription.current_period_end * 1000).toISOString()
+        const periodEnd = subscription.current_period_end
+          ? new Date(subscription.current_period_end * 1000).toISOString()
+          : null
 
         const { error } = await supabase
           .from('gym_memberships')
@@ -109,7 +107,7 @@ const periodEnd = subscription.current_period_end
             status: subscription.status,
             trial_ends_at: trialEnd,
             current_period_end: periodEnd,
-            tier_id: tierId || undefined
+            ...(tierId && { tier_id: tierId }),
           })
           .eq('stripe_subscription_id', subscription.id)
 
@@ -118,7 +116,6 @@ const periodEnd = subscription.current_period_end
         break
       }
 
-      // Subscription cancelled
       case 'customer.subscription.deleted': {
         const subscription = event.data.object
 
@@ -132,7 +129,6 @@ const periodEnd = subscription.current_period_end
         break
       }
 
-      // Payment failed
       case 'invoice.payment_failed': {
         const invoice = event.data.object
         const subscriptionId = invoice.subscription
