@@ -23,7 +23,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Tier not found' }, { status: 404 })
     }
 
-    // 2. Get the gym details (for trial days)
+    // 2. Get the gym details (for trial days and slug)
     const { data: gym, error: gymError } = await supabase
       .from('gyms')
       .select('*')
@@ -62,7 +62,6 @@ export async function POST(req) {
     let stripePriceId = tier.stripe_price_id
 
     if (!stripePriceId) {
-      // Create a Stripe Product + Price for this tier
       const product = await stripe.products.create({
         name: `${gym.name} — ${tier.name}`,
         metadata: { tierId, gymId }
@@ -78,14 +77,13 @@ export async function POST(req) {
 
       stripePriceId = price.id
 
-      // Save the price ID to the tier for future use
       await supabase
         .from('membership_tiers')
         .update({ stripe_price_id: stripePriceId })
         .eq('id', tierId)
     }
 
-    // 6. Create Stripe Checkout Session with subscription + trial
+    // 6. Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       mode: 'subscription',
@@ -94,8 +92,8 @@ export async function POST(req) {
         trial_period_days: gym.trial_days || 0,
         metadata: { userId, gymId, tierId }
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?welcome=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/onboarding`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/venues?joined=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/venues/${gym.slug}`,
       metadata: { userId, gymId, tierId }
     })
 
