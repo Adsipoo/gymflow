@@ -21,18 +21,23 @@ export default function LoginPage() {
       .eq('id', userId)
       .single()
 
+    // Check for a return URL (e.g. from direct join link)
+    const returnTo = new URLSearchParams(window.location.search).get('return')
+    if (returnTo && profile?.onboarding_complete) {
+      router.push(returnTo)
+      return
+    }
+
     if (!profile?.onboarding_complete) {
       router.push('/onboarding')
       return
     }
 
-    // Owners always go straight to dashboard
     if (profile.role === 'owner') {
       router.push('/dashboard')
       return
     }
 
-    // For members, check how many active memberships they have
     const { data: memberships } = await supabase
       .from('gym_memberships')
       .select('gym_id')
@@ -40,14 +45,11 @@ export default function LoginPage() {
       .in('status', ['active', 'trialing'])
 
     if (memberships && memberships.length > 1) {
-      // Multiple venues — show picker
       router.push('/pick-venue')
     } else if (memberships && memberships.length === 1) {
-      // Single venue — store it and go to dashboard
       localStorage.setItem('activeGymId', memberships[0].gym_id)
       router.push('/dashboard')
     } else {
-      // No memberships yet
       router.push('/dashboard')
     }
   }

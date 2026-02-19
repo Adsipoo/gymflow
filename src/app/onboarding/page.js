@@ -38,7 +38,18 @@ export default function Onboarding() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) router.push('/login')
-      else { setUser(user); setAuthChecked(true) }
+      else {
+        setUser(user)
+        setAuthChecked(true)
+
+        // Check if they came from a direct join link
+        const joinSlug = localStorage.getItem('joinSlug')
+        const joinTierId = localStorage.getItem('joinTierId')
+        if (joinSlug && joinTierId) {
+          // Skip to member path, step 1 still shows but path is preset
+          setPath('member')
+        }
+      }
     })
   }, [])
 
@@ -127,6 +138,11 @@ export default function Onboarding() {
     setLoading(true)
     setError('')
     try {
+      // Mark onboarding complete first
+      await supabase.from('profiles')
+        .update({ role: 'member', onboarding_complete: true })
+        .eq('id', user.id)
+
       const res = await fetch('/api/stripe/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -354,7 +370,6 @@ export default function Onboarding() {
       <h1 style={headingStyle}>Find your venue</h1>
       <p style={subheadingStyle}>Search for a venue or enter an invite code</p>
 
-      {/* Invite code */}
       <div style={{ marginBottom: '24px' }}>
         <label style={{ fontSize: '14px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '8px' }}>
           Have an invite code?
@@ -378,14 +393,12 @@ export default function Onboarding() {
         {inviteError && <p style={{ color: '#FF3B30', fontSize: '13px', marginTop: '8px' }}>{inviteError}</p>}
       </div>
 
-      {/* Divider */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
         <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
         <span style={{ color: '#9ca3af', fontSize: '13px' }}>or search the directory</span>
         <div style={{ flex: 1, height: '1px', background: '#e5e7eb' }} />
       </div>
 
-      {/* Category filter */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
         {['All', ...CATEGORIES].map(cat => (
           <button key={cat}
@@ -402,12 +415,10 @@ export default function Onboarding() {
         ))}
       </div>
 
-      {/* Search */}
       <input style={inputStyle} placeholder="Search by name or location..."
         value={searchQuery}
         onChange={e => { setSearchQuery(e.target.value); handleSearch(e.target.value, categoryFilter) }} />
 
-      {/* Results */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '320px', overflowY: 'auto' }}>
         {searchResults.map(v => (
           <button key={v.id}

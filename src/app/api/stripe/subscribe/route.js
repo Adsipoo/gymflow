@@ -92,7 +92,7 @@ export async function POST(req) {
         trial_period_days: gym.trial_days || 0,
         metadata: { userId, gymId, tierId }
       },
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/venues?joined=true`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/venues/${gym.slug}`,
       metadata: { userId, gymId, tierId }
     })

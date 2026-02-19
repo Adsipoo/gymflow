@@ -33,15 +33,24 @@ export default function AdminBrandingPage() {
   const [trialDays, setTrialDays] = useState(gym?.trial_days ?? 7)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const directLink = gym?.slug
+    ? `${window.location.origin}/join/${gym.slug}`
+    : null
+
+  const handleCopy = () => {
+    if (!directLink) return
+    navigator.clipboard.writeText(directLink)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   const handleSave = async () => {
     if (!gym?.id) return
     setSaving(true)
     await supabase.from('gyms').update({
-      name,
-      tagline,
-      theme,
-      trial_days: trialDays,
+      name, tagline, theme, trial_days: trialDays,
     }).eq('id', gym.id)
     setSaving(false)
     setSaved(true)
@@ -54,12 +63,8 @@ export default function AdminBrandingPage() {
     <div style={{ padding: '24px 20px 100px', maxWidth: 680, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, color: '#1C1C1E', letterSpacing: -0.5, margin: '0 0 4px' }}>
-            Branding
-          </h1>
-          <p style={{ color: '#8E8E93', fontSize: 14, margin: 0 }}>
-            Customise your venue's look, feel and settings
-          </p>
+          <h1 style={{ fontSize: 28, fontWeight: 700, color: '#1C1C1E', letterSpacing: -0.5, margin: '0 0 4px' }}>Branding</h1>
+          <p style={{ color: '#8E8E93', fontSize: 14, margin: 0 }}>Customise your venue's look, feel and settings</p>
         </div>
         <button onClick={handleSave} disabled={saving} style={{
           background: saved ? '#34C759' : '#007AFF',
@@ -86,18 +91,57 @@ export default function AdminBrandingPage() {
         position: 'relative', overflow: 'hidden',
       }}>
         <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: currentTheme.colors[0] }} />
-        <div style={{ fontSize: 11, fontWeight: 700, color: currentTheme.colors[0], letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4, marginTop: 8 }}>
-          Preview
-        </div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#8E8E93', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8 }}>
-          {name || 'Your Venue Name'}
-        </div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: currentTheme.colors[0], letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 4, marginTop: 8 }}>Preview</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#8E8E93', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 8 }}>{name || 'Your Venue Name'}</div>
         <div style={{ fontSize: 22, fontWeight: 700, color: '#1C1C1E', marginBottom: 4 }}>Welcome back</div>
         <div style={{ fontSize: 14, color: '#8E8E93' }}>{tagline || 'Your tagline here'}</div>
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
           <div style={{ padding: '8px 16px', borderRadius: 10, background: currentTheme.colors[0], color: '#fff', fontSize: 13, fontWeight: 600 }}>Book Class</div>
           <div style={{ padding: '8px 16px', borderRadius: 10, background: currentTheme.colors[0] + '10', color: currentTheme.colors[0], fontSize: 13, fontWeight: 600 }}>View Schedule</div>
         </div>
+      </div>
+
+      {/* Direct Join Link */}
+      <div style={{
+        background: '#FFFFFF', borderRadius: 16, padding: 24,
+        border: '1px solid rgba(0,0,0,0.06)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06)', marginBottom: 16,
+      }}>
+        <h3 style={{ fontSize: 17, fontWeight: 600, color: '#1C1C1E', margin: '0 0 4px' }}>Direct Join Link</h3>
+        <p style={{ color: '#8E8E93', fontSize: 13, margin: '0 0 16px' }}>
+          Share this link with new members — it takes them straight to your venue's signup page. Perfect for your Instagram bio, email footer, or flyers.
+        </p>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{
+            flex: 1, padding: '12px 14px', borderRadius: 12,
+            background: '#F2F2F7', fontSize: 13, color: '#3A3A3C',
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {directLink || 'No slug set'}
+          </div>
+          <button onClick={handleCopy} style={{
+            background: copied ? '#34C759' : '#007AFF',
+            color: '#fff', border: 'none',
+            padding: '12px 20px', borderRadius: 12, fontSize: 14,
+            fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            flexShrink: 0, transition: 'background 0.2s',
+          }}>
+            {copied ? '✓ Copied!' : 'Copy'}
+          </button>
+        </div>
+        {gym?.invite_code && (
+          <div style={{ marginTop: 12, padding: '10px 14px', background: '#F2F2F7', borderRadius: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#8E8E93', textTransform: 'uppercase', letterSpacing: 0.3 }}>Invite Code</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#1C1C1E', letterSpacing: 2, marginTop: 2 }}>{gym.invite_code}</div>
+            </div>
+            <button onClick={() => navigator.clipboard.writeText(gym.invite_code)} style={{
+              background: '#007AFF10', border: 'none', color: '#007AFF',
+              padding: '6px 14px', borderRadius: 8, fontSize: 13,
+              fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+            }}>Copy</button>
+          </div>
+        )}
       </div>
 
       {/* Venue Details */}
@@ -127,31 +171,19 @@ export default function AdminBrandingPage() {
       }}>
         <h3 style={{ fontSize: 17, fontWeight: 600, color: '#1C1C1E', margin: '0 0 4px' }}>Membership Settings</h3>
         <p style={{ color: '#8E8E93', fontSize: 13, margin: '0 0 16px' }}>Configure defaults for new members joining your venue</p>
-
         <div>
           <label style={labelStyle}>Free Trial Period</label>
-          <p style={{ color: '#8E8E93', fontSize: 12, margin: '2px 0 8px' }}>
-            How many days new members get free before their subscription starts
-          </p>
+          <p style={{ color: '#8E8E93', fontSize: 12, margin: '2px 0 8px' }}>How many days new members get free before their subscription starts</p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <input
-              type="number"
-              min={0}
-              max={90}
-              value={trialDays}
+            <input type="number" min={0} max={90} value={trialDays}
               onChange={e => setTrialDays(parseInt(e.target.value) || 0)}
-              style={{ ...inputStyle, width: 100 }}
-            />
+              style={{ ...inputStyle, width: 100 }} />
             <span style={{ color: '#8E8E93', fontSize: 14, fontWeight: 500 }}>days</span>
             {trialDays === 0 && (
-              <span style={{ fontSize: 12, color: '#FF9500', fontWeight: 600, background: '#FF950010', padding: '4px 10px', borderRadius: 8 }}>
-                No trial
-              </span>
+              <span style={{ fontSize: 12, color: '#FF9500', fontWeight: 600, background: '#FF950010', padding: '4px 10px', borderRadius: 8 }}>No trial</span>
             )}
             {trialDays > 0 && (
-              <span style={{ fontSize: 12, color: '#34C759', fontWeight: 600, background: '#34C75910', padding: '4px 10px', borderRadius: 8 }}>
-                {trialDays}-day free trial
-              </span>
+              <span style={{ fontSize: 12, color: '#34C759', fontWeight: 600, background: '#34C75910', padding: '4px 10px', borderRadius: 8 }}>{trialDays}-day free trial</span>
             )}
           </div>
         </div>
